@@ -4,10 +4,11 @@ import albumentations as A
 from albumentations.pytorch.transforms import ToTensorV2
 from dataset import PanNuke
 from sklearn.metrics import jaccard_score
+from tqdm import tqdm
 
 
 def get_loaders(path, train_fold = ['fold1', 'fold2'], val_fold = ['fold3']):
-    batch_size = 32
+    batch_size = 8
     #random_seed = 42
     #torch.manual_seed(random_seed)
     trans_img = v2.Compose([
@@ -53,7 +54,7 @@ def check_accuracy(loader, model, criterion, device = 'cuda'):
     tot_px = 0
     scores_dict = {f"Class {class_label}": 0.0 for class_label in range(6)}
     with torch.inference_mode():
-        for x, y in loader:
+        for x, y in tqdm(loader):
             x = x.to(device)
             y = y.to(device)
             scores = model(x)
@@ -72,13 +73,16 @@ def check_accuracy(loader, model, criterion, device = 'cuda'):
 
             # garbage colloect
             del x, y, scores, preds, loss, y_flattened, y_preds_flattened, score
-
-    print(f"\nPredicted {tot_num_corr} pixels correct out of {tot_px} pixels, with accuracy: {tot_num_corr/tot_px*100:.2f}%")
-    print(f'\nTotal validation loss: {total_loss}, Average validation loss: {total_loss/len(loader):.2f}')
+    acc = tot_num_corr/tot_px
+    avg_loss = total_loss/len(loader)
+    print(f"\nPredicted {tot_num_corr} pixels correct out of {tot_px} pixels, with accuracy: {acc:.2f}%")
+    print(f'\nTotal validation loss: {total_loss}, Average validation loss: {avg_loss:.2f}')
     class_scores = [score / len(loader) for score in scores_dict.values()]
     formatted_class_scores = [f"{score:.3f}" for score in class_scores]
     print(f"Average Jaccard scores for the 6 classes - Neoplastic, Limfo, Connective, Dead, Epithelia, Void are: {formatted_class_scores} respectively.")
     model.train()
+
+    return acc, avg_loss, formatted_class_scores[0], formatted_class_scores[1], formatted_class_scores[2], formatted_class_scores[3], formatted_class_scores[4], formatted_class_scores[5]
 
 
 #def check_accuracy(loader, model, criteria, device="cuda"):

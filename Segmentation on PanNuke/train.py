@@ -1,3 +1,4 @@
+import csv
 import torch
 import torch.nn as nn
 from tqdm import tqdm
@@ -13,12 +14,13 @@ from utils import (
     check_accuracy
 )
 
+# Workaround for SSL: CERTIFICATE_VERIFY_FAILED error
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 
 # Turn off warning related to smp package 
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, message="Implicit dimension choice for softmax has been deprecated.*")
-
-
 
 
 # Hyperparameters etc.
@@ -27,18 +29,15 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_EPOCHS = 25
 #LOAD_MODEL = False
 DATA_PATH = "E:\\temp_data_dump\\PanNuke\\data\\png"
-TRAIN_FOLD = ['fold1', 'fold3']
+TRAIN_FOLD = ['fold3', 'fold1']
 VAL_FOLD = ['fold2']
 
-
-#weights = [0.1666, 0.1666, 0.1666, 0.1666, 0.1666, 0.1666]
-#dice_loss = sm.losses.DiceLoss(class_weights=weights) 
-#focal_loss = sm.losses.CategoricalFocalLoss()
-#total_loss = dice_loss + (1 * focal_loss)  #
 
 def train_fn(loader, model, optimizer, loss_fn, scaler):
     loop = tqdm(loader)
     total_loss = 0.0        # initialization for total loss for current epoch 
+    correct_predictions = 0
+    total_predictions = 0
     for batch_idx, (data, targets) in enumerate(loop):
         data = data.to(device=DEVICE)
         targets = targets.squeeze(1).to(device=DEVICE)                                             # for transforms.v2
@@ -47,7 +46,9 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         # forward
         with torch.cuda.amp.autocast():
             scores = model(data)
-            #logits, predictions = torch.max(scores, dim=1)                              # Get predicted class indices
+            _, predictions = torch.max(scores, dim=1)  
+            correct_predictions += (predictions == targets).sum().item()
+            total_predictions += torch.numel(targets)
             #print(f"Unique pixel values in target: {torch.unique(targets[0, :, :])}")                              # sanity check
             #print(f"Unique pixel values in preds: {torch.unique(predictions[0, :, :])}")                           # sanity check           
             #print(f'\nData dim: {data.size()}, Target dim: {targets.size()}, Preds dim: {predictions.size()}')     # sanity check
@@ -65,8 +66,11 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         loop.set_postfix(loss=loss.item())
     
     avg_loss = total_loss / len(loader)
+    train_accuracy = correct_predictions / total_predictions
     print(f'\nTotal training loss for this epoch: {total_loss}')
     print(f'Average training loss for this epoch: {avg_loss}')
+
+    return avg_loss, train_accuracy
 
 
 def main():
@@ -89,8 +93,8 @@ def main():
         activation="softmax"            # Softmax activation on final layer
         ).to(DEVICE)
            
-    loss_fn = nn.CrossEntropyLoss()
-    #loss_fn = FocalLoss()
+    #loss_fn = nn.CrossEntropyLoss()
+    loss_fn = FocalLoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     train_loader, val_loader = get_loaders(DATA_PATH, TRAIN_FOLD, VAL_FOLD)
@@ -101,22 +105,26 @@ def main():
 
     #check_accuracy(val_loader, model, device=DEVICE)
     scaler = torch.cuda.amp.GradScaler()
+    with open('log_f31_focal_resu50.csv', 'w', newline='') as f:
+        csv_writer = csv.writer(f)
+        csv_writer.writerow(['Epoch','Training Loss', 'Training Accuracy', 'Validation Loss','Validation Accuracy','Jaccard Score Neoplastic','Jaccard Score Limfo','Jaccard Score Connective','Jaccard Score Dead','Jaccard Score Epithelia','Jaccard Score Void'])
+        for epoch in range(NUM_EPOCHS):
+            print(f'| Epoch {epoch+1}:')
+            train_loss, train_acc = train_fn(train_loader, model, optimizer, loss_fn, scaler)
+            # save model
+            checkpoint = {
+                "state_dict": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                }
 
-    for epoch in range(NUM_EPOCHS):
-        print(f'| Epoch {epoch+1}:')
-        train_fn(train_loader, model, optimizer, loss_fn, scaler)
+            save_checkpoint(checkpoint, filename='UNet_ResNet50BackEnd_ImageNetWeights_FocalLoss_f31.pth')
 
-        # save model
-        checkpoint = {
-            "state_dict": model.state_dict(),
-            "optimizer": optimizer.state_dict(),
-            }
-        
-        save_checkpoint(checkpoint, filename='UNet_ResNet50BackEnd_ImageNetWeights_CELoss_f13.pth')
-
-        # check accuracy every 5 epoch
-        if epoch%5 == 0:
-            check_accuracy(val_loader, model, loss_fn, device=DEVICE)
+            # check accuracy every 5 epoch
+            #if epoch%5 == 0:
+            #    check_accuracy(val_loader, model, loss_fn, device=DEVICE)
+            val_acc, val_loss, jaccard_score_neoplastic, jaccard_score_limfo, jaccard_score_conn, jaccard_score_dead, jaccard_score_epi, jaccard_score_void = check_accuracy(val_loader, model, loss_fn, device=DEVICE)
+            val_row = [epoch+1, train_loss, train_acc, val_loss, val_acc, jaccard_score_neoplastic, jaccard_score_limfo, jaccard_score_conn, jaccard_score_dead, jaccard_score_epi, jaccard_score_void]
+            csv_writer.writerow(val_row)
 
 if __name__ == "__main__":
     main()

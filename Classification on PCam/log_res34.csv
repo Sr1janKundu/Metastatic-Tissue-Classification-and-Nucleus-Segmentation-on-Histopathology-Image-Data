@@ -1,0 +1,6 @@
+Epoch,Training Loss,Validation Loss,Validation Accuracy,Validation Precision,Validation Recall,Validation F1 Score,Validation AUCROC
+1,0.243,0.30027,0.874,0.962,0.779,0.861,0.965
+2,0.15616,0.33676,0.866,0.962,0.762,0.85,0.955
+3,0.12635,0.309927,0.891,0.959,0.816,0.882,0.962
+4,0.108548,0.53153,0.828,0.986,0.666,0.795,0.959
+5,0.09413,0.32612,0.883,0.923,0.835,0.877,0.953

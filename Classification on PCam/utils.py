@@ -30,10 +30,13 @@ def evaluate(loader, model):
         acc.update(preds, labels)
         auc.update(outputs, labels)
     avg_loss = loss / len(loader)
+    accu = float(num_corr)/float(num_samp)
     print(f"Total loss: {loss}, Average loss: {avg_loss}")
-    print(f"Got {num_corr}/{num_samp} corrent with accuracy {float(num_corr)/float(num_samp)*100:.2f}")
+    print(f"Got {num_corr}/{num_samp} corrent with accuracy {accu*100:.2f}")
     print(f"| AUC: {auc.compute():.3f}, Accuracy: {acc.compute():.3f}, precision: {prec.compute():.3f}, recall: {recall.compute():.3f}, F1Score: {metric.compute():.3f}")
     model.train()
+
+    return avg_loss, acc.compute().item(), prec.compute().item(), recall.compute().item(), metric.compute().item(), auc.compute().item()
 
 
 def save_checkpoint(state, filename="my_checkpoint.pth"):

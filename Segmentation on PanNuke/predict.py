@@ -26,7 +26,8 @@ NUM_EPOCHS = 5
 #LOAD_MODEL = False
 DATA_PATH = "E:\\temp_data_dump\\PanNuke\\data\\png"
 SAVE_PATH = "D:\\dissertation ideas\\pannuke materials\\multi-class-segmentation\\pred_masks\\Focal Loss"
-MODEL_PATH = "D:\\dissertation ideas\\pannuke materials\\multi-class-segmentation\\UNet_ResNet50BackEnd_ImageNetWeights_CELoss_f13.pth"
+MODEL_PATH = "D:\\dissertation ideas\\pannuke materials\\multi-class-segmentation\\UNet_DenseNet121BackEnd_ImageNetWeights_FocalLoss_f31.pth"
+#MODEL_PATH = "D:\\dissertation ideas\\pannuke materials\\multi-class-segmentation\\UNet_ResNet50BackEnd_ImageNetWeights_CELoss_f13.pth"
 TRAIN_FOLD = ['fold1', 'fold3']
 VAL_FOLD = ['fold2']
 
@@ -36,7 +37,7 @@ VAL_FOLD = ['fold2']
 #MODEL.eval()
 
 MODEL = smp.Unet(
-    encoder_name="resnet50",        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
+    encoder_name="densenet121",        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
     encoder_weights="imagenet",     # use `imagenet` pre-trained weights for encoder initialization
     in_channels=3,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
     classes=6,                      # model output channels (number of classes in your dataset)
@@ -95,10 +96,12 @@ def predict(loader, model = MODEL):
             axes[4].imshow(pred_mask, alpha=0.35)
             axes[4].set_title('Predicted Mask Overlay on original')
             axes[4].axis('off')
-            plt.tight_layout()
+            #plt.tight_layout()
             plt.savefig(os.path.join(SAVE_PATH, f'{i}_Focal_loss.png'))  # Save each image with a unique name
             plt.close()  # Close the figure to avoid memory leaks
             i += 1
+            del img, mask, pred_mask
+        del data, target, predictions
 
 #def main():
 #    predict(TEST_IMAGES_FOLDER, OUTPUT_MASKS_FOLDER)
@@ -106,6 +109,6 @@ def predict(loader, model = MODEL):
 
 
 if __name__ == '__main__':
-    #predict(val_loader)
-    check_accuracy(val_loader, MODEL, nn.CrossEntropyLoss())
+    predict(val_loader)
+    #check_accuracy(val_loader, MODEL, nn.CrossEntropyLoss())
     #print(len(val_loader))

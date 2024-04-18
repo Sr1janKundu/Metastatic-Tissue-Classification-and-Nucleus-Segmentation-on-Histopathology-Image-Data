@@ -13,7 +13,7 @@ DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 BATCH_SIZE = 16
 #RANDOM_SEED = 42
 DATASET_PATH = 'D:\\dissertation ideas\\PCam'
-MODEL_SAVE_PATH = "D:\\dissertation ideas\\PCam\\Implementation\\model_resnet34.pth"
+MODEL_SAVE_PATH = "D:\\dissertation ideas\\PCam\\Implementation\\model_resnet50.pth"
 LEARNING_RATE = 0.01
 CLASSES = 1
 EPOCH = 5
@@ -21,7 +21,7 @@ EPOCH = 5
 
 train_dl, val_dl, test_dl = get_loader(batch=BATCH_SIZE)
 
-model_resnet = torchvision.models.resnet34(weights=torchvision.models.ResNet34_Weights.DEFAULT)
+model_resnet = torchvision.models.resnet50(weights=torchvision.models.ResNet50_Weights.DEFAULT)
 num_ftrs = model_resnet.fc.in_features
 model_resnet.fc = nn.Linear(in_features=num_ftrs, out_features=1)
 model_resnet.to(DEVICE)
